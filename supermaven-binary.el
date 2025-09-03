@@ -89,43 +89,39 @@
   (let* ((binary-path (supermaven--get-binary-path))
          (url (supermaven--construct-download-url)))
     
-    (supermaven-log-info (format "Determined system: %s-%s"
-                                (supermaven--determine-platform)
-                                (supermaven--determine-arch)))
-    
-    (let* ((url-request-method "GET")
-           (response-buffer (url-retrieve-synchronously url))
-           download-url)
-      (unwind-protect
-          (with-current-buffer response-buffer
-            (goto-char (point-min))
-            (re-search-forward "^$")
-            (forward-char)
-            (let* ((json-object-type 'hash-table)
-                   (response (json-read)))
-              (setq download-url (gethash "downloadUrl" response))))
-        (kill-buffer response-buffer))
-      
-      (unless download-url
-        (error "Failed to get download URL from Supermaven API"))
-      
-      (supermaven-log-debug (format "Download URL: %s" download-url))
-      (supermaven--download-binary download-url binary-path)
-      (setq supermaven-binary-path binary-path)
-      binary-path)))
+    (unless (file-exists-p binary-path)
+      (progn 
+        (supermaven-log-info (format "Determined system: %s-%s"
+                                     (supermaven--determine-platform)
+                                     (supermaven--determine-arch)))
+        (let* ((url-request-method "GET")
+               (response-buffer (url-retrieve-synchronously url))
+               download-url)
+          (unwind-protect
+              (with-current-buffer response-buffer
+                (goto-char (point-min))
+                (re-search-forward "^$")
+                (forward-char)
+                (let* ((json-object-type 'hash-table)
+                       (response (json-read)))
+                  (setq download-url (gethash "downloadUrl" response))))
+            (kill-buffer response-buffer))
+          
+          (unless download-url
+            (error "Failed to get download URL from Supermaven API"))
+          
+          (supermaven-log-debug (format "Download URL: %s" download-url))
+          (supermaven--download-binary download-url binary-path)
+          (setq supermaven-binary-path binary-path)
+          binary-path)))))
 
-(defun supermaven--ensure-binary ()
-  "Ensure the Supermaven binary is available and up to date."
+(defun supermaven-delete-binary ()
+  "Delete the supermaven binary."
+  (interactive)
   (let ((binary-path (supermaven--get-binary-path)))
-    (when (or (not (file-exists-p binary-path))
-              (not supermaven-binary-path))
-      (condition-case err
-          (progn
-            (supermaven--fetch-binary)
-            (supermaven-log-info (format "Successfully installed Supermaven binary to %s" binary-path)))
-        (error
-         (supermaven-log-error (format "Failed to fetch Supermaven binary: %s" (error-message-string err)))
-         (signal (car err) (cdr err)))))))
+    (if (file-exists-p binary-path)
+        (progn
+          (delete-file binary-path)))))
 
 (provide 'supermaven-binary)
 
