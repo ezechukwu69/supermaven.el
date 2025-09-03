@@ -58,11 +58,11 @@
          (version (supermaven--get-binary-version))
          (binary-name (if (eq system-type 'windows-nt) "sm-agent.exe" "sm-agent"))
          (data-home (or (getenv "XDG_DATA_HOME")
-                       (expand-file-name ".local/share" (getenv "HOME"))))
+                        (expand-file-name ".local/share" (getenv "HOME"))))
          (binary-dir (expand-file-name
-                     (format "supermaven/binary/%s/%s-%s"
-                             version platform arch)
-                     data-home)))
+                      (format "supermaven/binary/%s/%s-%s"
+                              version platform arch)
+                      data-home)))
     (expand-file-name binary-name binary-dir)))
 
 (defun supermaven--construct-download-url ()
@@ -122,6 +122,19 @@
     (if (file-exists-p binary-path)
         (progn
           (delete-file binary-path)))))
+
+(defun supermaven--ensure-binary ()
+  "Ensure the Supermaven binary is available and up to date."
+  (let ((binary-path (supermaven--get-binary-path)))
+    (when (or (not (file-exists-p binary-path))
+              (not supermaven-binary-path))
+      (condition-case err
+          (progn
+            (supermaven--fetch-binary)
+            (supermaven-log-info (format "Successfully installed Supermaven binary to %s" binary-path)))
+        (error
+         (supermaven-log-error (format "Failed to fetch Supermaven binary: %s" (error-message-string err)))
+         (signal (car err) (cdr err)))))))
 
 (provide 'supermaven-binary)
 
